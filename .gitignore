@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Data files (raw & processed datasets, SQLite database)
+data/
+*.db
+*.csv
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
