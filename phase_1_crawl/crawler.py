@@ -4,10 +4,6 @@ import time
 import pandas as pd
 from googleapiclient.discovery import build
 
-# ==========================================
-# CÁC HÀM XỬ LÝ DỮ LIỆU
-# ==========================================
-
 def load_credentials(file_path='credentials.json'):
     """Hàm kiểm tra và đọc file credentials"""
     if not os.path.exists(file_path):
@@ -86,29 +82,17 @@ def get_video_comments(youtube_client, video_id, max_comments=50):
     return comments
 
 
-# ==========================================
-# KHỞI TẠO VÀ THỰC THI (MAIN ROUTINE)
-# ==========================================
 if __name__ == "__main__":
     try:
-        # 1. Đọc thông tin bảo mật từ file JSON
         config = load_credentials()
         
-        # 2. Lấy API Key ra bằng Key tương ứng trong file JSON
         API_KEY = config.get('YOUTUBE_API_KEY')
         
         if not API_KEY or API_KEY.startswith("AIzaSyYourActualAPIKey"):
             raise ValueError("API Key chưa được cấu hình chính xác trong file JSON.")
 
-        # 3. Khởi tạo YouTube Client
         youtube = build('youtube', 'v3', developerKey=API_KEY)
         print("[THÀNH CÔNG] Đã cấu hình YouTube API Client thành công!\n" + "-"*50)
-        
-        # ---------------------------------------------------------
-        # BẮT ĐẦU QUÁ TRÌNH CRAWL DỮ LIỆU
-        # ---------------------------------------------------------
-        
-        # Từ khóa cần phân tích (Thay đổi theo sản phẩm/thương hiệu mục tiêu của bạn)
         
         SEARCH_QUERIES = [
             "đánh giá VF3",
@@ -126,41 +110,34 @@ if __name__ == "__main__":
         ]
 
         for query in SEARCH_QUERIES:
-            SEARCH_QUERY = query  # Từ khóa tìm kiếm (có thể thay đổi theo nhu cầu)
-            MAX_VIDEOS = 50      # Số lượng video muốn lấy
-            MAX_COMMENTS = 2000  # Số lượng bình luận tối đa mỗi video
+            SEARCH_QUERY = query  
+            MAX_VIDEOS = 50      
+            MAX_COMMENTS = 2000  
             
-            # Bước A: Lấy danh sách video
             videos_list = search_smartphone_videos(youtube, SEARCH_QUERY, max_results=MAX_VIDEOS)
             
             all_video_data = []
             all_comments_data = []
             
-            # Bước B: Quét từng video để lấy thống kê và bình luận
             for i, vid in enumerate(videos_list, start=1):
                 vid_id = vid['video_id']
                 print(f"[{i}/{len(videos_list)}] Đang xử lý video ID: {vid_id}")
                 
-                # Lấy thống kê tương tác
                 stats = get_video_stats(youtube, vid_id)
                 if stats:
                     vid.update(stats)
                     all_video_data.append(vid)
                     
-                # Lấy bình luận
                 comments = get_video_comments(youtube, vid_id, max_comments=MAX_COMMENTS)
                 all_comments_data.extend(comments)
                 
-                # Tạm nghỉ 1 giây giữa các request để tránh bị Google block (Rate Limit)
                 time.sleep(1) 
 
-            # Bước C: Xuất dữ liệu ra file CSV
             print("-" * 50 + "\n[*] Đang lưu dữ liệu ra file CSV...")
             
             df_videos = pd.DataFrame(all_video_data)
             df_comments = pd.DataFrame(all_comments_data)
             
-            # Lưu file với chuẩn utf-8-sig để không bị lỗi font tiếng Việt khi mở bằng Excel
             df_videos.to_csv('youtube_video_stats.csv', index=False, encoding='utf-8-sig')
             df_comments.to_csv('youtube_comments.csv', index=False, encoding='utf-8-sig')
             
