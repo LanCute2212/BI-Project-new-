@@ -18,3 +18,10 @@ data/
 .vscode/
 .idea/
 .DS_Store
+
+# Logs and temporary files
+logs/
+*.log
+temp/
+credential.json
+

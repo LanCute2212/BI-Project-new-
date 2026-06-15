@@ -6,9 +6,20 @@ from datetime import datetime
 from preprocess import preprocess_vietnamese_text
 
 # Đường dẫn file dữ liệu
-RAW_DATA_PATH = os.path.join("data", "raw_comments.csv")
+RAW_DATA_CANDIDATES = [
+    "rawdata.csv",
+    os.path.join("data", "raw_comments.csv"),
+    os.path.join("data", "rawdata.csv"),
+]
 PROCESSED_DATA_PATH = os.path.join("data", "processed_comments.csv")
 DB_PATH = os.path.join("data", "sentiment_dwh.db")
+
+
+def resolve_raw_data_path():
+    for candidate in RAW_DATA_CANDIDATES:
+        if os.path.exists(candidate):
+            return candidate
+    return RAW_DATA_CANDIDATES[0]
 
 # Danh sách từ vựng hỗ trợ cho mô hình Lexicon dự phòng (khi không có Internet/PyTorch)
 POSITIVE_KEYWORDS = ["đẹp", "tốt", "êm", "rẻ", "thích", "sướng", "tiết kiệm", "hợp lý", "ngon", "yêu", "đỉnh", "tiện", "cute", "đầm"]
@@ -204,13 +215,15 @@ def load_data_to_dwh(df):
 
 if __name__ == "__main__":
     # Đảm bảo có dữ liệu thô đầu vào
-    if not os.path.exists(RAW_DATA_PATH):
-        print(f"[!] Không tìm thấy file {RAW_DATA_PATH}. Đang chạy crawler để tạo dữ liệu...")
+    raw_data_path = resolve_raw_data_path()
+    if not os.path.exists(raw_data_path):
+        print(f"[!] Không tìm thấy file {raw_data_path}. Đang chạy crawler để tạo dữ liệu...")
         import subprocess
         subprocess.run(["python", "crawler.py"])
-        
+        raw_data_path = resolve_raw_data_path()
+
     # Đọc dữ liệu
-    df = pd.read_csv(RAW_DATA_PATH)
+    df = pd.read_csv(raw_data_path)
     
     # Chạy mô hình Sentiment Analysis
     texts = df['comment_text'].tolist()
