@@ -2,7 +2,6 @@ import re
 import unicodedata
 from underthesea import word_tokenize
 import pandas as pd
-import emoji
 
 import sys
 import codecs

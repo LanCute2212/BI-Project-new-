@@ -39,12 +39,14 @@ DB_PATH = os.path.join(BASE_DIR, "data", "sentiment_dwh.db")
 POSITIVE_KEYWORDS = [
     "đẹp", "tốt", "êm", "rẻ", "thích", "sướng", "tiết kiệm", "hợp lý", "ngon", "yêu", "đỉnh", 
     "tiện", "cute", "đầm", "mượt", "tiện_lợi", "hài_lòng", "đầm_chắc", "cách_âm_tốt", "rộng_rãi", 
-    "bốc", "vượt_trội", "nhanh", "chu_đáo", "yên_tâm", "chuyên_nghiệp", "tiện_ích"
+    "bốc", "vượt_trội", "nhanh", "chu_đáo", "yên_tâm", "chuyên_nghiệp", "tiện_ích", "tuyệt", 
+    "tuyệt_vời", "ổn", "ngon_lành", "yêu_thích", "đáng_mua", "xuất_sắc", "chất_lượng", "hoàn_hảo", "uy_tín", "tin_tưởng"
 ]
 NEGATIVE_KEYWORDS = [
     "lỗi", "chán", "kém", "đắt", "tệ", "hỏng", "bất_tiện", "chậm", "ít", "mệt", "yếu", 
     "lỏng_lẻo", "hoang_mang", "dở", "kém_chất_lượng", "lỗi_ảo", "hao_pin", "chờ_lâu", "ồn", 
-    "xóc", "quá_tải", "khan_hiếm", "rớt_giá", "cứng", "lỏng_lẻo", "cót_kẹt"
+    "xóc", "quá_tải", "khan_hiếm", "rớt_giá", "cứng", "lỏng_lẻo", "cót_kẹt", "rác", "rác_rưởi", 
+    "phế", "tệ_hại", "dỏm", "yếu_kém", "lừa_đảo", "ngáo_giá", "kém_chất", "thất_vọng", "chê", "không_ổn", "vứt"
 ]
 NEGATION_WORDS = ["không", "chưa", "chẳng", "chả", "không_được"]
 INTENSIFIER_WORDS = ["rất", "quá", "lắm", "cực_kỳ", "vô_cùng", "hoàn_toàn", "khá", "cực"]
@@ -128,8 +130,17 @@ def run_lexicon_sentiment(texts):
             has_negation = False
             for j in range(max(0, i-2), i):
                 if any(negation in tokens[j] for negation in NEGATION_WORDS):
-                    has_negation = True
-                    break
+                    # Nếu giữa từ phủ định và từ cảm xúc có các từ so sánh/tương đương (ví dụ: không khác gì, chả khác gì)
+                    # thì sắc thái của từ cảm xúc sẽ KHÔNG bị đảo ngược.
+                    COMPARATOR_WORDS = ["khác", "khác_gì", "khác gì", "như", "giống", "kém", "kém_gì", "kém gì"]
+                    has_comparator = False
+                    for k in range(j + 1, i):
+                        if any(comp in tokens[k] for comp in COMPARATOR_WORDS):
+                            has_comparator = True
+                            break
+                    if not has_comparator:
+                        has_negation = True
+                        break
             
             if is_pos:
                 if has_negation:
