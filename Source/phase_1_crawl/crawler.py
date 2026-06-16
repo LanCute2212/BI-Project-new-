@@ -9,7 +9,6 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 if sys.platform.startswith('win'):
-    # Đảm bảo console ghi nhận tiếng Việt UTF-8 không lỗi trên Windows
     if hasattr(sys.stdout, 'buffer'):
         try:
             sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'replace')
@@ -21,18 +20,16 @@ if sys.platform.startswith('win'):
         except Exception:
             pass
 
-# Tạo thư mục chứa dữ liệu nếu chưa tồn tại
 os.makedirs("data", exist_ok=True)
 
 df_credentials = pd.read_json('credential.json')
 
-YOUTUBE_API_KEY = df_credentials['YOUTUBE_API_KEY'].iloc[0]  # Lấy API Key từ file credential.json
-         # ID của video cần crawl bình luận
+YOUTUBE_API_KEY = df_credentials['YOUTUBE_API_KEY'].iloc[0]  
 REDDIT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-SEARCH_QUERY = df_credentials['SEARCH_QUERY'].iloc[0]   # Từ khóa tìm kiếm cho Reddit, Twitter, Facebook
+SEARCH_QUERY = df_credentials['SEARCH_QUERY'].iloc[0]   
 
-TWITTER_BEARER_TOKEN = df_credentials['TWITTER_BEARER_TOKEN'].iloc[0]  # Nhập Bearer Token nếu có tài khoản Twitter Developer
-FACEBOOK_ACCESS_TOKEN = df_credentials['FACEBOOK_ACCESS_TOKEN'].iloc[0] # Nhập Access Token nếu có tài khoản Facebook Developer
+TWITTER_BEARER_TOKEN = df_credentials['TWITTER_BEARER_TOKEN'].iloc[0]  
+FACEBOOK_ACCESS_TOKEN = df_credentials['FACEBOOK_ACCESS_TOKEN'].iloc[0]
 
 import json
 import os

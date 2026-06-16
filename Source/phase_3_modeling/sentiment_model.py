@@ -5,26 +5,22 @@ import numpy as np
 import codecs
 from datetime import datetime
 
-# Tính toán BASE_DIR để chạy linh hoạt ở thư mục gốc hoặc thư mục con phase
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if "phase_" in os.path.basename(current_dir).lower() or "phase_" in current_dir.lower():
     BASE_DIR = os.path.abspath(os.path.join(current_dir, ".."))
 else:
     BASE_DIR = current_dir
 
-# Ánh xạ thư mục phase_2_preprocess để import preprocess.py thành công
 sys.path.append(os.path.join(BASE_DIR, "phase_2_preprocess"))
 from preprocess import preprocess_vietnamese_text
 
-# Cấu hình MySQL
 MYSQL_HOST = "localhost"
 MYSQL_PORT = 3306
 MYSQL_USER = "root"
-MYSQL_PASSWORD = ""  # Nhập mật khẩu MySQL của bạn ở đây
+MYSQL_PASSWORD = "" 
 MYSQL_DATABASE = "sentiment_dwh"
 
 if sys.platform.startswith('win'):
-    # Đảm bảo console ghi nhận tiếng Việt UTF-8 không lỗi trên Windows
     if hasattr(sys.stdout, 'buffer'):
         try:
             sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'replace')
@@ -36,12 +32,10 @@ if sys.platform.startswith('win'):
         except Exception:
             pass
 
-# Đường dẫn file dữ liệu tuyệt đối động
 RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw_comments.csv")
 PROCESSED_DATA_PATH = os.path.join(BASE_DIR, "data", "processed_comments.csv")
 DB_PATH = os.path.join(BASE_DIR, "data", "sentiment_dwh.db")
 
-# Danh sách từ vựng hỗ trợ cho mô hình Lexicon dự phòng (khi không có Internet/PyTorch)
 POSITIVE_KEYWORDS = [
     "đẹp", "tốt", "êm", "rẻ", "thích", "sướng", "tiết kiệm", "hợp lý", "ngon", "yêu", "đỉnh", 
     "tiện", "cute", "đầm", "mượt", "tiện_lợi", "hài_lòng", "đầm_chắc", "cách_âm_tốt", "rộng_rãi", 
@@ -55,7 +49,6 @@ NEGATIVE_KEYWORDS = [
 NEGATION_WORDS = ["không", "chưa", "chẳng", "chả", "không_được"]
 INTENSIFIER_WORDS = ["rất", "quá", "lắm", "cực_kỳ", "vô_cùng", "hoàn_toàn", "khá", "cực"]
 
-# Từ điển để trích xuất dòng xe (Car Model)
 CAR_MODEL_KEYWORDS = {
     "model_vf3": ["vf3", "vf 3"],
     "model_vf5": ["vf5", "vf 5"],
@@ -69,7 +62,6 @@ CAR_MODEL_KEYWORDS = {
     "model_xiaomi_su7": ["xiaomi", "su7"]
 }
 
-# Từ điển để trích xuất khía cạnh (Aspect)
 ASPECT_KEYWORDS = {
     "asp_charging": ["sạc", "trạm sạc", "cổng sạc", "sạc nhanh", "trạm sạc công cộng"],
     "asp_battery": ["pin", "thuê pin", "gói thuê pin", "dung lượng pin", "chai pin", "sạc tại nhà"],
@@ -98,17 +90,13 @@ def extract_aspect(text):
     return "asp_other"
 
 def run_lexicon_sentiment(texts):
-    """
-    Thuật toán Lexicon nâng cao (Rule-based Baseline)
-    Hỗ trợ xử lý Từ phủ định (Negation) và Từ tăng cường (Intensifier)
-    """
+
     results = []
     for text in texts:
         if not isinstance(text, str) or not text.strip():
             results.append(("Trung lập", 0.5))
             continue
             
-        # Tách từ để xử lý theo ngữ cảnh vị trí các từ
         tokens = preprocess_vietnamese_text(text, tokenize=True)
         if not tokens:
             results.append(("Trung lập", 0.5))
@@ -120,19 +108,15 @@ def run_lexicon_sentiment(texts):
         pos_score = 0.0
         neg_score = 0.0
         
-        # Duyệt qua các token
         for i, token in enumerate(tokens):
-            # Kiểm tra xem token có chứa từ khóa cảm xúc không
             is_pos = any(word in token for word in POSITIVE_KEYWORDS)
             is_neg = any(word in token for word in NEGATIVE_KEYWORDS)
             
             if not is_pos and not is_neg:
                 continue
                 
-            # Mặc định cường độ từ cảm xúc là 1.0
             word_intensity = 1.0
             
-            # Kiểm tra từ tăng cường trước từ cảm xúc (trong khoảng 2 token trước đó)
             has_intensifier = False
             for j in range(max(0, i-2), i):
                 if any(intensifier in tokens[j] for intensifier in INTENSIFIER_WORDS):
@@ -141,32 +125,28 @@ def run_lexicon_sentiment(texts):
             if has_intensifier:
                 word_intensity = 1.5
                 
-            # Kiểm tra từ phủ định trước từ cảm xúc (trong khoảng 2 token trước đó)
             has_negation = False
             for j in range(max(0, i-2), i):
                 if any(negation in tokens[j] for negation in NEGATION_WORDS):
                     has_negation = True
                     break
             
-            # Tính điểm
             if is_pos:
                 if has_negation:
-                    neg_score += word_intensity  # Đảo cực từ tích cực thành tiêu cực
+                    neg_score += word_intensity  
                 else:
                     pos_score += word_intensity
             elif is_neg:
                 if has_negation:
-                    pos_score += word_intensity  # Đảo cực từ tiêu cực thành tích cực (vd: không lỗi)
+                    pos_score += word_intensity  
                 else:
                     neg_score += word_intensity
                     
-        # Heuristic nhận diện câu hỏi nghi vấn để gán nhãn Trung lập (Neutral) cho các câu hỏi tìm hiểu thông tin
         is_question = False
         text_lower = text.lower()
         if text.strip().endswith('?'):
             is_question = True
         else:
-            # Các từ nghi vấn phổ biến ở cuối hoặc giữa câu
             question_markers = [
                 "cho hỏi", "xin hỏi", "hỏi về", "thế nào", "như thế nào", "sao mọi người",
                 "không mọi người", "không cả nhà", "không mọi người ơi", "không nhỉ", "không thế",
@@ -175,12 +155,10 @@ def run_lexicon_sentiment(texts):
             if any(marker in text_lower for marker in question_markers):
                 is_question = True
             else:
-                # regex mẫu "có ... không"
                 import re
                 if re.search(r'\bcó\b.*\bkhông\b', text_lower):
                     is_question = True
         
-        # Phân loại cảm xúc dựa trên tổng điểm tích lũy và đặc tính câu hỏi
         if is_question and abs(pos_score - neg_score) <= 1.0:
             results.append(("Trung lập", 0.5))
         elif pos_score > neg_score:
@@ -195,14 +173,10 @@ def run_lexicon_sentiment(texts):
     return results
 
 def run_phobert_sentiment(texts):
-    """
-    Sử dụng mô hình PhoBERT đã được train sẵn để dự đoán cảm xúc (Positive, Negative, Neutral).
-    Nếu gặp lỗi (thiếu thư viện, không có GPU/Internet), hệ thống sẽ tự động chuyển sang Lexicon Fallback.
-    """
+
     print("[*] Đang tải mô hình PhoBERT (w11wo/phobert-base-vietnamese-sentiment) từ Hugging Face...")
     try:
         from transformers import pipeline
-        # Khởi tạo pipeline phân tích cảm xúc
         classifier = pipeline(
             "sentiment-analysis", 
             model="w11wo/phobert-base-vietnamese-sentiment",
@@ -211,16 +185,13 @@ def run_phobert_sentiment(texts):
         
         results = []
         for i, text in enumerate(texts):
-            # Tokenize câu trước khi đưa vào PhoBERT (yêu cầu tách từ)
             segmented_text = preprocess_vietnamese_text(text, tokenize=True)
             
-            # Nếu segmented_text là list
             if isinstance(segmented_text, list):
                 segmented_str = " ".join(segmented_text)
             else:
                 segmented_str = segmented_text
                 
-            # Giới hạn chiều dài chuỗi đầu vào (PhoBERT hỗ trợ tối đa 256/512 tokens)
             truncated_text = " ".join(segmented_str.split()[:150])
             
             if not truncated_text.strip():
@@ -231,7 +202,6 @@ def run_phobert_sentiment(texts):
             label = prediction['label']
             score = prediction['score']
             
-            # Map nhãn đầu ra sang tiếng Việt
             label_map = {
                 '0': 'Tiêu cực', '1': 'Trung lập', '2': 'Tích cực',
                 'NEG': 'Tiêu cực', 'NEU': 'Trung lập', 'POS': 'Tích cực',
@@ -252,13 +222,10 @@ def run_phobert_sentiment(texts):
         return run_lexicon_sentiment(texts)
 
 def setup_mysql_database():
-    """
-    Khởi tạo database MySQL đại diện cho Data Warehouse (mô hình Star Schema).
-    """
+
     print(f"[*] Đang kết nối và khởi tạo Database MySQL tại {MYSQL_HOST}:{MYSQL_PORT}...")
     import pymysql
     try:
-        # Kết nối không chọn database để tạo database trước
         conn = pymysql.connect(
             host=MYSQL_HOST,
             port=MYSQL_PORT,
@@ -270,7 +237,6 @@ def setup_mysql_database():
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS {MYSQL_DATABASE} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
         conn.select_db(MYSQL_DATABASE)
         
-        # 1. Tạo bảng chiều Dim_Date
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_date (
             date_key VARCHAR(8) PRIMARY KEY,
@@ -282,7 +248,6 @@ def setup_mysql_database():
         )
         """)
         
-        # 2. Tạo bảng chiều Dim_Source
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_source (
             source_key VARCHAR(50) PRIMARY KEY,
@@ -291,7 +256,6 @@ def setup_mysql_database():
         )
         """)
         
-        # 3. Tạo bảng chiều Dim_Sentiment
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_sentiment (
             sentiment_key VARCHAR(50) PRIMARY KEY,
@@ -300,7 +264,6 @@ def setup_mysql_database():
         )
         """)
 
-        # 4. Tạo bảng chiều Dim_Car_Model
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_car_model (
             model_key VARCHAR(50) PRIMARY KEY,
@@ -310,7 +273,6 @@ def setup_mysql_database():
         )
         """)
         
-        # 5. Tạo bảng chiều Dim_Aspect
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_aspect (
             aspect_key VARCHAR(50) PRIMARY KEY,
@@ -319,7 +281,6 @@ def setup_mysql_database():
         )
         """)
 
-        # 6. Tạo bảng chiều Dim_User
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_user (
             user_key VARCHAR(50) PRIMARY KEY,
@@ -329,7 +290,6 @@ def setup_mysql_database():
         )
         """)
         
-        # 7. Tạo bảng sự kiện Fact_Comments
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS fact_comments (
             comment_key VARCHAR(100) PRIMARY KEY,
@@ -358,9 +318,7 @@ def setup_mysql_database():
         raise e
 
 def load_data_to_dwh(df):
-    """
-    Nạp dữ liệu từ DataFrame đã phân tích cảm xúc vào Data Warehouse MySQL.
-    """
+
     print("[*] Đang thực hiện ETL: Load dữ liệu vào MySQL Data Warehouse...")
     import pymysql
     try:
@@ -374,7 +332,6 @@ def load_data_to_dwh(df):
         )
         cursor = conn.cursor()
         
-        # Xóa dữ liệu cũ để tránh trùng lặp khi chạy lại demo
         cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
         cursor.execute("TRUNCATE TABLE fact_comments")
         cursor.execute("TRUNCATE TABLE dim_date")
@@ -385,7 +342,6 @@ def load_data_to_dwh(df):
         cursor.execute("TRUNCATE TABLE dim_user")
         cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
         
-        # Nạp dữ liệu mặc định cho Dim_Car_Model
         car_models = [
             ('model_vf3', 'VF 3', 'VinFast', 'Mini-SUV'),
             ('model_vf5', 'VF 5', 'VinFast', 'A-SUV'),
@@ -404,7 +360,6 @@ def load_data_to_dwh(df):
         VALUES (%s, %s, %s, %s)
         """, car_models)
         
-        # Nạp dữ liệu mặc định cho Dim_Aspect
         aspects = [
             ('asp_charging', 'Trạm sạc', 'Số lượng, phân bố, tốc độ sạc, sự tiện lợi của hệ thống trạm sạc'),
             ('asp_battery', 'Pin & Thuê pin', 'Chính sách thuê pin, dung lượng pin, chai pin, sạc tại nhà'),
@@ -420,7 +375,6 @@ def load_data_to_dwh(df):
         """, aspects)
         
         for index, row in df.iterrows():
-            # Trích xuất thời gian để nạp vào Dim_Date
             try:
                 dt = datetime.strptime(row['published_at'], "%Y-%m-%dT%H:%M:%SZ")
             except:
@@ -435,7 +389,6 @@ def load_data_to_dwh(df):
             VALUES (%s, %s, %s, %s, %s, %s)
             """, (date_key, full_date, dt.day, dt.month, dt.year, quarter))
             
-            # Nạp dữ liệu vào Dim_Source
             source_name = row['source']
             platform_name = row.get('platform', 'Social Media')
             source_key = "src_" + platform_name.lower().replace(" ", "_") + "_" + source_name.lower().replace(" ", "_").replace("đ", "d").replace("/", "_").replace("[", "").replace("]", "")
@@ -444,14 +397,12 @@ def load_data_to_dwh(df):
             VALUES (%s, %s, %s)
             """, (source_key, source_name, platform_name))
             
-            # Nạp dữ liệu vào Dim_Sentiment
             sentiment_key = f"sent_{index}"
             cursor.execute("""
             INSERT IGNORE INTO dim_sentiment (sentiment_key, sentiment_label, confidence_score)
             VALUES (%s, %s, %s)
             """, (sentiment_key, row['sentiment'], float(row['sentiment_score'])))
             
-            # Nạp dữ liệu vào Dim_User
             author_name = row['author']
             author_type = row.get('author_type', 'Regular')
             follower_count = int(row.get('follower_count', 0))
@@ -461,12 +412,10 @@ def load_data_to_dwh(df):
             VALUES (%s, %s, %s, %s)
             """, (user_key, author_name, author_type, follower_count))
             
-            # Trích xuất dòng xe và khía cạnh thảo luận
             comment_text = row['comment_text']
             model_key = extract_car_model(comment_text)
             aspect_key = extract_aspect(comment_text)
             
-            # Nạp dữ liệu vào Fact_Comments
             cursor.execute("""
             INSERT INTO fact_comments (comment_key, date_key, source_key, sentiment_key, model_key, aspect_key, user_key, comment_text, like_count)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -490,9 +439,6 @@ def load_data_to_dwh(df):
         raise e
 
 def setup_sqlite_database():
-    """
-    Khởi tạo database SQLite làm DWH dự phòng.
-    """
     print(f"[*] Đang khởi tạo Database SQLite tại {DB_PATH}...")
     import os
     import sqlite3
@@ -506,7 +452,6 @@ def setup_sqlite_database():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # 1. Tạo bảng chiều Dim_Date
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_date (
             date_key TEXT PRIMARY KEY,
@@ -518,7 +463,6 @@ def setup_sqlite_database():
         )
         """)
         
-        # 2. Tạo bảng chiều Dim_Source
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_source (
             source_key TEXT PRIMARY KEY,
@@ -527,7 +471,6 @@ def setup_sqlite_database():
         )
         """)
         
-        # 3. Tạo bảng chiều Dim_Sentiment
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_sentiment (
             sentiment_key TEXT PRIMARY KEY,
@@ -536,7 +479,6 @@ def setup_sqlite_database():
         )
         """)
 
-        # 4. Tạo bảng chiều Dim_Car_Model
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_car_model (
             model_key TEXT PRIMARY KEY,
@@ -546,7 +488,6 @@ def setup_sqlite_database():
         )
         """)
         
-        # 5. Tạo bảng chiều Dim_Aspect
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_aspect (
             aspect_key TEXT PRIMARY KEY,
@@ -555,7 +496,6 @@ def setup_sqlite_database():
         )
         """)
 
-        # 6. Tạo bảng chiều Dim_User
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_user (
             user_key TEXT PRIMARY KEY,
@@ -565,7 +505,6 @@ def setup_sqlite_database():
         )
         """)
         
-        # 7. Tạo bảng sự kiện Fact_Comments
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS fact_comments (
             comment_key TEXT PRIMARY KEY,
@@ -594,9 +533,6 @@ def setup_sqlite_database():
         raise e
 
 def load_data_to_sqlite(df):
-    """
-    Nạp dữ liệu từ DataFrame vào SQLite DWH.
-    """
     print("[*] Đang thực hiện ETL: Load dữ liệu vào SQLite Data Warehouse...")
     import sqlite3
     try:
@@ -613,7 +549,6 @@ def load_data_to_sqlite(df):
         cursor.execute("DELETE FROM dim_user")
         cursor.execute("PRAGMA foreign_keys = ON")
         
-        # Nạp dữ liệu mặc định cho Dim_Car_Model
         car_models = [
             ('model_vf3', 'VF 3', 'VinFast', 'Mini-SUV'),
             ('model_vf5', 'VF 5', 'VinFast', 'A-SUV'),
@@ -632,7 +567,6 @@ def load_data_to_sqlite(df):
         VALUES (?, ?, ?, ?)
         """, car_models)
         
-        # Nạp dữ liệu mặc định cho Dim_Aspect
         aspects = [
             ('asp_charging', 'Trạm sạc', 'Số lượng, phân bố, tốc độ sạc, sự tiện lợi của hệ thống trạm sạc'),
             ('asp_battery', 'Pin & Thuê pin', 'Chính sách thuê pin, dung lượng pin, chai pin, sạc tại nhà'),
@@ -648,7 +582,6 @@ def load_data_to_sqlite(df):
         """, aspects)
         
         for index, row in df.iterrows():
-            # Trích xuất thời gian để nạp vào Dim_Date
             try:
                 dt = datetime.strptime(row['published_at'], "%Y-%m-%dT%H:%M:%SZ")
             except:
@@ -663,7 +596,6 @@ def load_data_to_sqlite(df):
             VALUES (?, ?, ?, ?, ?, ?)
             """, (date_key, full_date, dt.day, dt.month, dt.year, quarter))
             
-            # Nạp dữ liệu vào Dim_Source
             source_name = row['source']
             platform_name = row.get('platform', 'Social Media')
             source_key = "src_" + platform_name.lower().replace(" ", "_") + "_" + source_name.lower().replace(" ", "_").replace("đ", "d").replace("/", "_").replace("[", "").replace("]", "")
@@ -672,14 +604,12 @@ def load_data_to_sqlite(df):
             VALUES (?, ?, ?)
             """, (source_key, source_name, platform_name))
             
-            # Nạp dữ liệu vào Dim_Sentiment
             sentiment_key = f"sent_{index}"
             cursor.execute("""
             INSERT OR IGNORE INTO dim_sentiment (sentiment_key, sentiment_label, confidence_score)
             VALUES (?, ?, ?)
             """, (sentiment_key, row['sentiment'], float(row['sentiment_score'])))
             
-            # Nạp dữ liệu vào Dim_User
             author_name = row['author']
             author_type = row.get('author_type', 'Regular')
             follower_count = int(row.get('follower_count', 0))
@@ -689,12 +619,10 @@ def load_data_to_sqlite(df):
             VALUES (?, ?, ?, ?)
             """, (user_key, author_name, author_type, follower_count))
             
-            # Trích xuất dòng xe và khía cạnh thảo luận
             comment_text = row['comment_text']
             model_key = extract_car_model(comment_text)
             aspect_key = extract_aspect(comment_text)
             
-            # Nạp dữ liệu vào Fact_Comments
             cursor.execute("""
             INSERT INTO fact_comments (comment_key, date_key, source_key, sentiment_key, model_key, aspect_key, user_key, comment_text, like_count)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -718,7 +646,6 @@ def load_data_to_sqlite(df):
         raise e
 
 if __name__ == "__main__":
-    # Đảm bảo có dữ liệu thô đầu vào
     if not os.path.exists(RAW_DATA_PATH):
         print(f"[!] Không tìm thấy file {RAW_DATA_PATH}. Đang chạy generate_data.py để sinh dữ liệu...")
         import subprocess
@@ -727,22 +654,17 @@ if __name__ == "__main__":
             gen_path = os.path.join(BASE_DIR, "generate_data.py")
         subprocess.run(["py", gen_path])
         
-    # Đọc dữ liệu
     df = pd.read_csv(RAW_DATA_PATH)
     
-    # Chạy mô hình Sentiment Analysis
     texts = df['comment_text'].tolist()
     sentiment_results = run_phobert_sentiment(texts)
     
-    # Lưu kết quả phân tích vào dataframe
     df['sentiment'] = [res[0] for res in sentiment_results]
     df['sentiment_score'] = [res[1] for res in sentiment_results]
     
-    # Xuất file CSV đã gán nhãn
     df.to_csv(PROCESSED_DATA_PATH, index=False, encoding="utf-8-sig")
     print(f"[+] Đã lưu dữ liệu đã gán nhãn cảm xúc tại: {PROCESSED_DATA_PATH}")
     
-    # Cài đặt CSDL và nạp dữ liệu (Thử MySQL trước, nếu lỗi chuyển sang SQLite)
     try:
         setup_mysql_database()
         load_data_to_dwh(df)

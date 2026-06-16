@@ -5,27 +5,23 @@ import streamlit as st
 import plotly.express as px
 from collections import Counter
 
-# Tính toán BASE_DIR để chạy linh hoạt ở thư mục gốc hoặc thư mục con phase
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if "phase_" in os.path.basename(current_dir).lower() or "phase_" in current_dir.lower():
     BASE_DIR = os.path.abspath(os.path.join(current_dir, ".."))
 else:
     BASE_DIR = current_dir
 
-# Ánh xạ thư mục các phase để import các tệp tin thành công
 sys.path.append(os.path.join(BASE_DIR, "phase_2_preprocess"))
 sys.path.append(os.path.join(BASE_DIR, "phase_3_modeling"))
 from preprocess import preprocess_vietnamese_text
 from sentiment_model import run_phobert_sentiment, extract_car_model, extract_aspect
 
-# Đặt tiêu đề và cấu hình trang
 st.set_page_config(
     page_title="VinFast BI Sentiment Dashboard",
     page_icon="⚡",
     layout="wide"
 )
 
-# Cấu hình CSDL ở Sidebar
 st.sidebar.header("💾 Cấu hình Cơ sở dữ liệu")
 db_type = st.sidebar.selectbox("Loại Database", ["SQLite (Offline)", "MySQL (Online)"], index=0)
 
@@ -36,7 +32,6 @@ if db_type == "MySQL (Online)":
     mysql_pass = st.sidebar.text_input("MySQL Password", "", type="password")
     mysql_db = st.sidebar.text_input("MySQL Database", "sentiment_dwh")
 
-# Hàm kết nối CSDL và đọc dữ liệu
 def load_data_from_db():
     query = """
     SELECT 
@@ -82,7 +77,6 @@ def load_data_from_db():
             st.sidebar.error(f"❌ Không kết nối được MySQL: {e}")
             return None
     else:
-        # SQLite Connection
         try:
             import sqlite3
             db_file_path = os.path.join(BASE_DIR, "data", "sentiment_dwh.db")
@@ -94,7 +88,6 @@ def load_data_from_db():
             st.sidebar.error(f"❌ Không kết nối được SQLite: {e}")
             return None
 
-# CSS tùy chỉnh để làm dashboard trông cực kỳ chuyên nghiệp theo tone màu VinFast (Royal Blue)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
@@ -188,34 +181,26 @@ if df is None or len(df) == 0:
     st.info("👉 Vui lòng chạy file pipeline `sentiment_model.py` để sinh dữ liệu và nạp cơ sở dữ liệu.")
     st.code("py sentiment_model.py", language="bash")
 else:
-    # Sidebar lọc dữ liệu nâng cao
     st.sidebar.markdown("### 🔎 Bộ Lọc Báo Cáo")
     
-    # 1. Lọc theo thương hiệu
     brands = sorted(df['brand'].unique().tolist())
     selected_brands = st.sidebar.multiselect("Thương hiệu:", brands, default=brands)
     
-    # 2. Lọc theo dòng xe (phụ thuộc vào thương hiệu đã chọn)
     available_models = sorted(df[df['brand'].isin(selected_brands)]['model_name'].unique().tolist())
     selected_models = st.sidebar.multiselect("Dòng xe:", available_models, default=available_models)
     
-    # 3. Lọc theo khía cạnh phản hồi
     aspects = sorted(df['aspect_name'].unique().tolist())
     selected_aspects = st.sidebar.multiselect("Khía cạnh:", aspects, default=aspects)
     
-    # 4. Lọc theo nguồn dữ liệu
     platforms = sorted(df['platform'].unique().tolist())
     selected_platforms = st.sidebar.multiselect("Nguồn dữ liệu:", platforms, default=platforms)
     
-    # 5. Lọc theo cảm xúc
     sentiments = sorted(df['sentiment_label'].unique().tolist())
     selected_sentiments = st.sidebar.multiselect("Cảm xúc:", sentiments, default=sentiments)
     
-    # 6. Lọc theo nhóm Tác giả (Celeb vs Regular)
     author_types = df['author_type'].unique().tolist()
     selected_author_types = st.sidebar.multiselect("Nhóm Tác giả:", author_types, default=author_types)
     
-    # 7. Lọc theo lượng Followers (Reach)
     max_f = int(df['follower_count'].max())
     min_followers, max_followers = st.sidebar.slider(
         "Lượng Followers của tác giả:", 
@@ -223,7 +208,6 @@ else:
         step=max(1, max_f // 100)
     )
     
-    # Áp dụng bộ lọc
     filtered_df = df[
         df['brand'].isin(selected_brands) &
         df['model_name'].isin(selected_models) &
@@ -235,7 +219,6 @@ else:
         (df['follower_count'] <= max_followers)
     ]
     
-    # --- PHẦN XUẤT DỮ LIỆU BI (Tableau / Power BI) ---
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📤 Xuất Dữ Liệu Cho BI Tool")
     
@@ -256,25 +239,21 @@ else:
     else:
         st.sidebar.info("Tải xuống từng bảng dưới đây để Import vào Power BI/Tableau:")
         
-        # 1. Dim Date
         dim_date_df = filtered_df[['full_date', 'month', 'year']].drop_duplicates()
         dim_date_df['date_key'] = pd.to_datetime(dim_date_df['full_date']).dt.strftime('%Y%m%d')
         dim_date_df['day'] = pd.to_datetime(dim_date_df['full_date']).dt.day
         dim_date_df['quarter'] = (pd.to_datetime(dim_date_df['full_date']).dt.month - 1) // 3 + 1
         dim_date_csv = dim_date_df[['date_key', 'full_date', 'day', 'month', 'year', 'quarter']].to_csv(index=False, encoding="utf-8-sig")
         
-        # 2. Dim Source
         dim_source_df = filtered_df[['channel_name', 'platform']].drop_duplicates()
         dim_source_df['source_key'] = "src_" + dim_source_df['platform'].str.lower().str.replace(" ", "_") + "_" + dim_source_df['channel_name'].str.lower().str.replace(" ", "_").str.replace("đ", "d").str.replace("/", "_").str.replace("[", "").str.replace("]", "")
         dim_source_csv = dim_source_df[['source_key', 'channel_name', 'platform']].to_csv(index=False, encoding="utf-8-sig")
         
-        # 3. Dim User
         dim_user_df = filtered_df[['author', 'author_type', 'follower_count']].drop_duplicates()
         dim_user_df['user_key'] = "usr_" + dim_user_df['author'].apply(lambda x: str(hash(str(x)) % 100000000))
         dim_user_df.columns = ['username', 'author_type', 'follower_count', 'user_key']
         dim_user_csv = dim_user_df[['user_key', 'username', 'author_type', 'follower_count']].to_csv(index=False, encoding="utf-8-sig")
         
-        # 4. Dim Car Model
         dim_model_df = filtered_df[['model_name', 'brand']].drop_duplicates()
         model_map = {
             'VF 3': ('model_vf3', 'Mini-SUV'), 'VF 5': ('model_vf5', 'A-SUV'),
@@ -287,7 +266,6 @@ else:
         dim_model_df['segment'] = dim_model_df['model_name'].apply(lambda x: model_map.get(x, ('model_other', 'Khác'))[1])
         dim_model_csv = dim_model_df[['model_key', 'model_name', 'brand', 'segment']].to_csv(index=False, encoding="utf-8-sig")
         
-        # 5. Dim Aspect
         dim_aspect_df = filtered_df[['aspect_name']].drop_duplicates()
         aspect_map = {
             'Trạm sạc': ('asp_charging', 'Số lượng, phân bố, tốc độ sạc, sự tiện lợi của hệ thống trạm sạc'),
@@ -301,7 +279,6 @@ else:
         dim_aspect_df['description'] = dim_aspect_df['aspect_name'].apply(lambda x: aspect_map.get(x, ('asp_other', 'Khác'))[1])
         dim_aspect_csv = dim_aspect_df[['aspect_key', 'aspect_name', 'description']].to_csv(index=False, encoding="utf-8-sig")
 
-        # 6. Fact Comments
         fact_df = filtered_df.copy()
         fact_df['date_key'] = pd.to_datetime(fact_df['full_date']).dt.strftime('%Y%m%d')
         fact_df['source_key'] = "src_" + fact_df['platform'].str.lower().str.replace(" ", "_") + "_" + fact_df['channel_name'].str.lower().str.replace(" ", "_").str.replace("đ", "d").str.replace("/", "_").str.replace("[", "").str.replace("]", "")
@@ -310,7 +287,6 @@ else:
         fact_df['aspect_key'] = fact_df['aspect_name'].apply(lambda x: aspect_map.get(x, ('asp_other', 'Khác'))[0])
         fact_df['sentiment_key'] = fact_df['comment_key'].apply(lambda x: f"sent_{x}")
         
-        # 7. Dim Sentiment
         dim_sentiment_df = filtered_df[['comment_key', 'sentiment_label', 'confidence_score']].copy()
         dim_sentiment_df['sentiment_key'] = dim_sentiment_df['comment_key'].apply(lambda x: f"sent_{x}")
         dim_sentiment_csv = dim_sentiment_df[['sentiment_key', 'sentiment_label', 'confidence_score']].to_csv(index=False, encoding="utf-8-sig")
@@ -325,7 +301,6 @@ else:
         st.sidebar.download_button("📥 Tải Dim_Car_Model.csv", dim_model_csv, "dim_car_model.csv", "text/csv")
         st.sidebar.download_button("📥 Tải Dim_Aspect.csv", dim_aspect_csv, "dim_aspect.csv", "text/csv")
     
-    # --- ROW 1: METRICS ---
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Tổng bình luận phân tích", f"{len(filtered_df):,}")
@@ -341,7 +316,6 @@ else:
         
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- ROW 2: BIỂU ĐỒ TRỰC QUAN HÓA CƠ BẢN ---
     col_left, col_right = st.columns(2)
     
     with col_left:
@@ -366,7 +340,6 @@ else:
     with col_right:
         st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
         st.subheader("📅 Xu Hướng Cảm Xúc Theo Thời Gian")
-        # Gom nhóm theo ngày và cảm xúc
         trend_df = filtered_df.groupby(['full_date', 'sentiment_label']).size().reset_index(name='Số lượng')
         
         fig_line = px.line(
@@ -387,7 +360,6 @@ else:
         st.plotly_chart(fig_line, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
         
-    # --- ROW 3: PHÂN TÍCH SO SÁNH DÒNG XE & KHÍA CẠNH ---
     col_model, col_aspect = st.columns(2)
     
     with col_model:
@@ -438,7 +410,6 @@ else:
             st.write("Không có dữ liệu khía cạnh.")
         st.markdown("</div>", unsafe_allow_html=True)
         
-    # --- ROW 4: PHÂN TÍCH NHÓM TÁC GIẢ CELEBS VS REGULARS ---
     col_usr_sent, col_reach_brand = st.columns(2)
     
     with col_usr_sent:
@@ -488,7 +459,6 @@ else:
         
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # --- ROW 5: BÌNH LUẬN TIÊU BIỂU & TỪ KHÓA ---
     col_tbl, col_words = st.columns([3, 2])
     
     with col_tbl:
@@ -531,7 +501,6 @@ else:
 
 st.markdown("---")
 
-# --- ROW 6: KHU VỰC THỬ NGHIỆM MÔ HÌNH REAL-TIME ---
 st.subheader("🔮 Trải Nghiệm Dự Đoán Cảm Xúc Bằng Mô Hình (Real-time Prediction)")
 user_input = st.text_area("Nhập một bình luận tiếng Việt về xe điện để kiểm tra cảm xúc:", placeholder="Ví dụ: Xe VF 8 đi phượt đầm chắc cực sướng, cơ mà phần mềm hay báo lỗi hệ thống ảo...")
 
@@ -540,11 +509,9 @@ if st.button("Phân tích bình luận"):
         st.warning("Vui lòng nhập nội dung bình luận!")
     else:
         with st.spinner("Đang chạy mô hình phân tích cảm xúc & trích xuất thông tin..."):
-            # Chạy dự đoán cảm xúc
             result = run_phobert_sentiment([user_input])[0]
             sentiment_pred, score = result
             
-            # Trích xuất dòng xe & khía cạnh
             extracted_model_key = extract_car_model(user_input)
             extracted_aspect_key = extract_aspect(user_input)
             
@@ -565,7 +532,6 @@ if st.button("Phân tích bình luận"):
             model_display = model_map.get(extracted_model_key, "Khác/Chung")
             aspect_display = aspect_map.get(extracted_aspect_key, "Khác")
             
-            # Hiển thị kết quả cảm xúc tương ứng với màu sắc
             if sentiment_pred == "Tích cực":
                 st.success(f"🟢 **Cảm xúc: Tích cực** (Độ tin cậy: {score*100:.2f}%)")
             elif sentiment_pred == "Tiêu cực":

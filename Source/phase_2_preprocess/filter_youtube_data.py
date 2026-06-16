@@ -90,7 +90,6 @@ def filter_comment(text):
     if car_pattern.search(text_str):
         return True
         
-    # 3. Soft
     if seeding_pattern.search(text_str):
         return False
         
@@ -100,13 +99,11 @@ def filter_comment(text):
         
     return True
 
-# Đọc file, áp dụng hàm lọc và lưu file mới lưu ý chạy ở thư mục gốc của dự án 
 # python phase_2_preprocess/filter_youtube_data.py
 df = pd.read_csv('data/youtube_comments.csv')
 df = df.dropna(subset=['text']).copy()
 
 df['is_relevant'] = df['text'].apply(filter_comment)
 
-# Lấy các bình luận hợp lệ và lưu file
 kept_comments = df[df['is_relevant'] == True].drop(columns=['is_relevant'])
 kept_comments.to_csv('data/filtered_youtube_comments.csv', index=False)
