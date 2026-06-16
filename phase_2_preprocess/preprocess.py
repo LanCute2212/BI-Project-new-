@@ -1,6 +1,8 @@
 import re
 import unicodedata
 from underthesea import word_tokenize
+import pandas as pd
+import emoji
 
 # Từ điển ánh xạ từ viết tắt, tiếng lóng tiếng Việt thường gặp
 VIETNAMESE_SLANGS = {
@@ -80,12 +82,34 @@ def replace_slangs(text):
     normalized_words = [VIETNAMESE_SLANGS.get(w, w) for w in words]
     return " ".join(normalized_words)
 
+def remove_emojis_regex(text):
+    """
+    Xóa sạch mọi ký tự không phải chữ cái tiếng Việt, số, hoặc khoảng trắng.
+    Không cần dùng thư viện emoji.
+    """
+    if not isinstance(text, str):
+        return ""
+    
+    # Bước 1: Chuyển về chữ thường để dễ xử lý
+    text = text.lower()
+    
+    # Bước 2: Regex Tối Thượng - Chỉ giữ lại đúng a-z, 0-9, dấu cách và chữ tiếng Việt
+    # Bất cứ ký tự nào khác (icon, dấu câu, ký tự lạ) sẽ bị biến thành khoảng trắng
+    text = re.sub(r'[^a-z0-9_àáảãạâầấẩẫậăằắẳẵặèéẻẽẹêềếểễệđìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ\s]', ' ', text)
+    
+    # Bước 3: Dọn dẹp khoảng trắng thừa
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 def preprocess_vietnamese_text(text, tokenize=True):
     """
     Toàn bộ pipeline tiền xử lý văn bản tiếng Việt.
     """
+    
+    text_with_translated_emojis = remove_emojis_regex(text)
+
     # 1. Làm sạch văn bản thô
-    cleaned = clean_text(text)
+    cleaned = clean_text(text_with_translated_emojis)
     
     # 2. Chuẩn hóa tiếng lóng/viết tắt
     normalized = replace_slangs(cleaned)
@@ -101,8 +125,50 @@ def preprocess_vietnamese_text(text, tokenize=True):
         
     return normalized
 
+
 if __name__ == "__main__":
-    # Test thử tiền xử lý
-    test_comment = "Xe VF3 đi ok lắm nha ae, ko bị lỗi vặt tí nào cả 👍!!! Link review: http://example.com"
-    print("Bình luận gốc:", test_comment)
-    print("Sau tiền xử lý:", preprocess_vietnamese_text(test_comment, tokenize=True))
+    # 1. Định nghĩa đường dẫn file và tên cột cần xử lý
+    # (Bạn hãy thay đổi tên file và tên cột cho khớp với dữ liệu thực tế)
+    csv_file_path = 'data/filtered_youtube_comments.csv'
+    text_column_name = 'text' 
+    
+    try:
+        # 2. Đọc file CSV vào Pandas DataFrame
+        df = pd.read_csv(csv_file_path, encoding='utf-8')
+        print(f"Đã tải thành công {len(df)} dòng dữ liệu từ {csv_file_path}.\n")
+        
+        # Khởi tạo một mảng để lưu kết quả sau khi xử lý
+        processed_results = []
+        
+        # 3. Lặp để duyệt từng dòng (iterrows) và xử lý
+        print("Đang tiến hành xử lý dữ liệu...")
+        for index, row in df.iterrows():
+            # Lấy nội dung bình luận, ép kiểu về string để tránh lỗi với giá trị NaN/Null
+            original_text = str(row[text_column_name])
+            
+            # Đưa qua pipeline tiền xử lý của bạn
+            processed_text = preprocess_vietnamese_text(original_text, tokenize=True)
+            
+            # Thêm kết quả vào mảng
+            processed_results.append(processed_text)
+            
+            # (Tùy chọn) In ra 3 dòng đầu tiên để trực quan hóa kết quả test
+            # if index < 3:
+            #     print(f"--- Dòng {index + 1} ---")
+            #     print(f"Gốc    : {original_text}")
+            #     print(f"Đã xử lý: {processed_text}\n")
+                
+        # 4. Gắn danh sách kết quả thành một cột mới trong DataFrame
+        df['processed_comment'] = processed_results
+        
+        # 5. Xuất kết quả ra một file CSV mới (utf-8-sig để Excel không bị lỗi font tiếng Việt)
+        output_file = 'data/processed_comments.csv'
+        df.to_csv(output_file, index=False, encoding='utf-8-sig')
+        print(f"Đã hoàn thành! Kết quả được lưu tại: {output_file}")
+        
+    except FileNotFoundError:
+        print(f"Lỗi: Không tìm thấy file '{csv_file_path}'. Vui lòng kiểm tra lại tên hoặc đường dẫn.")
+    except KeyError:
+        print(f"Lỗi: File CSV không chứa cột nào tên là '{text_column_name}'. Vui lòng kiểm tra lại dữ liệu.")
+    except Exception as e:
+        print(f"Có lỗi bất ngờ xảy ra: {e}")

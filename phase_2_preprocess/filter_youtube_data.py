@@ -34,6 +34,7 @@ hard_spam_keywords = [
     r'http[s]?://\S+', r'www\.\S+', r'\bbit\.ly\S*', r'\bzalo\.me\S*', r'\bfb\.com\S*', r'\bfacebook\.com\S*',
     r'\.com\/\S*', r'\.vn\/\S*', r'\.net\/\S*', r'link\s*bên\s*dưới', r'link\s*ở\s*dưới', r'link\s*tiểu\s*sử',
     r'nhóm\s*zalo', r'group\s*zalo', r'vào\s*nhóm', r'kéo\s*nhóm', r'zalo\s*0\d{8,9}\b', r'sđt\s*0\d{8,9}\b',
+    r'zalo', r'\bfb\b', r'\bfacebook\b', r'\blink\b', r'\btiểu\s*sử\b', r'\bprofile\b', r'\bnick\b',
     
     r'\blô đề\b', r'\bsoi cầu\b', r'\bchốt số\b', r'\btài xỉu\b', r'\bcá độ\b', r'\bcá cược\b', r'\bbóng bánh\b',
     r'\bnhà cái\b', r'\bcasino\b', r'\bkubet\b', r'\bku\s*casino\b', r'\bsunwin\b', r'\bgo88\b', r'\bbet88\b',
@@ -108,4 +109,4 @@ df['is_relevant'] = df['text'].apply(filter_comment)
 
 # Lấy các bình luận hợp lệ và lưu file
 kept_comments = df[df['is_relevant'] == True].drop(columns=['is_relevant'])
-kept_comments.to_csv('filtered_youtube_comments.csv', index=False)
+kept_comments.to_csv('data/filtered_youtube_comments.csv', index=False)

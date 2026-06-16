@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from preprocess import preprocess_vietnamese_text
+from phase_2_preprocess.preprocess import preprocess_vietnamese_text
 
 # Đường dẫn file dữ liệu
 RAW_DATA_CANDIDATES = [

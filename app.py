@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from collections import Counter
-from preprocess import preprocess_vietnamese_text
+from phase_2_preprocess.preprocess import preprocess_vietnamese_text
 from sentiment_model import run_phobert_sentiment
 
 # Đặt tiêu đề và cấu hình trang
