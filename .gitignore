@@ -19,9 +19,5 @@ data/
 .idea/
 .DS_Store
 
-# Logs and temporary files
-logs/
-*.log
-temp/
+# Credentials
 credential.json
-

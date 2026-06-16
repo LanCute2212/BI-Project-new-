@@ -1,15 +1,33 @@
 import re
 import unicodedata
-from underthesea import word_tokenize
+import sys
+import codecs
+
+if sys.platform.startswith('win'):
+    # Đảm bảo console ghi nhận tiếng Việt UTF-8 không lỗi trên Windows
+    if hasattr(sys.stdout, 'buffer'):
+        try:
+            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'replace')
+        except Exception:
+            pass
+    if hasattr(sys.stderr, 'buffer'):
+        try:
+            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'replace')
+        except Exception:
+            pass
+
+try:
+    from underthesea import word_tokenize
+    UNDERTHESEA_AVAILABLE = True
+except ImportError:
+    UNDERTHESEA_AVAILABLE = False
 
 # Từ điển ánh xạ từ viết tắt, tiếng lóng tiếng Việt thường gặp
 VIETNAMESE_SLANGS = {
     "ko": "không",
     "k": "không",
     "khg": "không",
-    "khg": "không",
     "kg": "không",
-    "chưa": "chưa",
     "dc": "được",
     "đc": "được",
     "gút": "tốt",
@@ -19,6 +37,14 @@ VIETNAMESE_SLANGS = {
     "okay": "tốt",
     "vfs": "vinfast",
     "vf": "vinfast",
+    "vf3": "vinfast vf3",
+    "vf5": "vinfast vf5",
+    "vf6": "vinfast vf6",
+    "vf7": "vinfast vf7",
+    "vf8": "vinfast vf8",
+    "vf9": "vinfast vf9",
+    "vfe34": "vinfast vfe34",
+    "e34": "vinfast vfe34",
     "đt": "điện thoại",
     "tks": "cảm ơn",
     "thanks": "cảm ơn",
@@ -30,7 +56,6 @@ VIETNAMESE_SLANGS = {
     "mình": "mình",
     "mh": "mình",
     "nv": "nhân viên",
-    "bs": "bác sĩ",
     "fb": "facebook",
     "ytb": "youtube",
     "vs": "với",
@@ -95,9 +120,13 @@ def preprocess_vietnamese_text(text, tokenize=True):
         
     # 3. Tách từ tiếng Việt bằng underthesea (Word Segmentation)
     if tokenize:
-        # format="fixed" nối các từ ghép bằng dấu gạch dưới (ví dụ: "xe_điện")
-        tokens = word_tokenize(normalized, format="fixed")
-        return tokens
+        if UNDERTHESEA_AVAILABLE:
+            # format="fixed" nối các từ ghép bằng dấu gạch dưới (ví dụ: "xe_điện")
+            tokens = word_tokenize(normalized, format="fixed")
+            return tokens
+        else:
+            # Fallback sang tách từ bằng khoảng trắng nếu không có underthesea
+            return normalized.split()
         
     return normalized
 
