@@ -4,6 +4,28 @@ from underthesea import word_tokenize
 import pandas as pd
 import emoji
 
+import sys
+import codecs
+
+if sys.platform.startswith('win'):
+    # Đảm bảo console ghi nhận tiếng Việt UTF-8 không lỗi trên Windows
+    if hasattr(sys.stdout, 'buffer'):
+        try:
+            sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'replace')
+        except Exception:
+            pass
+    if hasattr(sys.stderr, 'buffer'):
+        try:
+            sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'replace')
+        except Exception:
+            pass
+
+try:
+    from underthesea import word_tokenize
+    UNDERTHESEA_AVAILABLE = True
+except ImportError:
+    UNDERTHESEA_AVAILABLE = False
+    
 # Từ điển ánh xạ từ viết tắt, tiếng lóng tiếng Việt thường gặp
 VIETNAMESE_SLANGS = {
     "ko": "không",
