@@ -1,6 +1,6 @@
-# Phân Tích Cảm Xúc Ý Kiến Khách Hàng Về Xe Điện Từ Reddit (PhoBERT & Streamlit Dashboard)
+# Phân Tích Cảm Xúc Ý Kiến Khách Hàng Về Xe Điện Tại Việt Nam (PhoBERT & Streamlit Dashboard)
 
-Dự án này là hệ thống thu thập dữ liệu từ Reddit về chủ đề xe điện, thực hiện tiền xử lý văn bản tiếng Việt, phân tích cảm xúc (Sentiment Analysis) sử dụng mô hình học sâu **PhoBERT**, lưu trữ vào kho dữ liệu quan hệ (Data Warehouse) thiết kế theo mô hình hình sao (Star Schema), và trực quan hóa qua Dashboard tương tác **Streamlit**.
+Dự án này là hệ thống thu thập dữ liệu (crawling) bình luận mạng xã hội (ví dụ từ YouTube/Diễn đàn), thực hiện tiền xử lý văn bản tiếng Việt, phân tích cảm xúc (Sentiment Analysis) sử dụng mô hình học sâu **PhoBERT**, lưu trữ vào kho dữ liệu quan hệ (Data Warehouse) thiết kế theo mô hình hình sao (Star Schema), và trực quan hóa qua Dashboard tương tác **Streamlit**.
 
 ---
 
@@ -10,16 +10,16 @@ Hệ thống hoạt động theo pipeline 5 bước khép kín:
 
 ```mermaid
 graph TD
-    A[Nguồn dữ liệu: Reddit] -->|Crawl: Python Script| B[(rawdata.csv)]
+    A[Nguồn dữ liệu: YouTube API / Tinh Tế] -->|Crawl: Python Script| B[(Raw Data: CSV / MongoDB)]
     B -->|ETL: Clean & Standardize| C[Tiền xử lý Tiếng Việt: Underthesea]
     C -->|Phân tích cảm xúc| D[PhoBERT Model]
     D -->|Dữ liệu đã gán nhãn Sentiment| E[ETL pipeline: Python/SQLAlchemy]
-    E -->|Lưu trữ Star Schema| F[(Data Warehouse: MySQL)]
-    F -->|Kết nối dữ liệu| G[Dashboard: Power BI]
+    E -->|Lưu trữ Star Schema| F[(Data Warehouse: PostgreSQL/MySQL)]
+    F -->|Kết nối dữ liệu| G[Dashboard: Streamlit / Power BI]
 ```
 
 ### Chi tiết các bước trong Pipeline:
-1. **Thu thập dữ liệu (Crawling):** Lấy dữ liệu bài đăng và bình luận liên quan đến xe điện trên Reddit, lưu dữ liệu thô vào file `rawdata.csv`.
+1. **Thu thập dữ liệu (Crawling):** Lấy dữ liệu bình luận từ video YouTube review xe điện (VinFast VF3, VF8, VF9, BYD, v.v.) qua YouTube Data API v3.
 2. **Tiền xử lý văn bản (Preprocessing):**
    - Loại bỏ các ký tự đặc biệt, link, HTML tags.
    - Chuẩn hóa Telex, viết tắt (vd: *ko, k* -> *không*, *vfs* -> *vinfast*).
@@ -36,7 +36,7 @@ Dự án được tổ chức như sau:
 
 * [README.md](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/README.md) - Tài liệu hướng dẫn chi tiết dự án (chủ đề và pipeline).
 * [requirements.txt](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/requirements.txt) - Danh sách các thư viện cần cài đặt.
-* [crawler.py](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/crawler.py) - Script crawl dữ liệu Reddit về xe điện và xuất ra `rawdata.csv`.
+* [crawler.py](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/crawler.py) - Script crawl dữ liệu bình luận từ YouTube API.
 * [preprocess.py](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/preprocess.py) - Script làm sạch và tách từ (Tokenization) tiếng Việt.
 * [sentiment_model.py](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/sentiment_model.py) - Trích xuất đặc trưng và gán nhãn cảm xúc bằng mô hình PhoBERT.
 * [db_setup.sql](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/db_setup.sql) - Schema thiết kế Data Warehouse dưới dạng SQL (Star Schema).
@@ -59,12 +59,11 @@ Chạy các câu lệnh trong file [db_setup.sql](file:///C:/Users/phong/.gemini
 
 ### Bước 3: Cấu hình và Thu thập dữ liệu
 * Lấy **YouTube API Key** từ Google Cloud Console.
-* Mở [crawler.py](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/crawler.py) nếu muốn chỉnh danh sách subreddit hoặc từ khóa tìm kiếm.
-* Chạy script crawl để tạo dữ liệu thô:
+* Mở [crawler.py](file:///C:/Users/phong/.gemini/antigravity-ide/scratch/vietnamese-sentiment-analysis/crawler.py), điền API Key và Video ID cần crawl.
+* Chạy script crawl:
   ```bash
   python crawler.py
   ```
-* File đầu ra mặc định là `rawdata.csv` ở thư mục gốc; script cũng tạo bản sao tương thích tại `data/raw_comments.csv` để các bước sau không bị gãy.
 
 ### Bước 4: Tiền xử lý & Phân tích cảm xúc (PhoBERT)
 Chạy script xử lý dữ liệu và đẩy vào database:

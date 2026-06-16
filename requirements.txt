@@ -10,3 +10,5 @@ psycopg2-binary>=2.9.0
 pytz
 requests
 plotly>=5.0.0
+pymysql
+cryptography
