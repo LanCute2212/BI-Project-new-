@@ -6,13 +6,25 @@ import plotly.express as px
 from collections import Counter
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-if "phase_" in os.path.basename(current_dir).lower() or "phase_" in current_dir.lower():
-    BASE_DIR = os.path.abspath(os.path.join(current_dir, ".."))
-else:
-    BASE_DIR = current_dir
+temp_dir = current_dir
+project_root = None
+while temp_dir and temp_dir != os.path.dirname(temp_dir):
+    if os.path.exists(os.path.join(temp_dir, ".git")) or os.path.exists(os.path.join(temp_dir, "README.md")) or os.path.exists(os.path.join(temp_dir, "data")):
+        project_root = temp_dir
+        break
+    temp_dir = os.path.dirname(temp_dir)
 
-sys.path.append(os.path.join(BASE_DIR, "phase_2_preprocess"))
-sys.path.append(os.path.join(BASE_DIR, "phase_3_modeling"))
+if not project_root:
+    project_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
+
+BASE_DIR = project_root
+
+SOURCE_DIR = os.path.join(BASE_DIR, "Source")
+if not os.path.exists(SOURCE_DIR):
+    SOURCE_DIR = BASE_DIR
+
+sys.path.append(os.path.join(SOURCE_DIR, "phase_2_preprocess"))
+sys.path.append(os.path.join(SOURCE_DIR, "phase_3_modeling"))
 from preprocess import preprocess_vietnamese_text
 from sentiment_model import run_phobert_sentiment, extract_car_model, extract_aspect
 
