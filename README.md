@@ -34,15 +34,15 @@ graph TD
 
 Dự án được cấu trúc theo các Phase phát triển và lưu trữ mã nguồn trong thư mục `Source`:
 
-* **[README.md](file:///e:/vietnamese-sentiment-analysis/README.md)** - Tài liệu hướng dẫn chi tiết dự án.
-* **[Source/](file:///e:/vietnamese-sentiment-analysis/Source)** - Thư mục chứa toàn bộ mã nguồn của dự án.
-  * **[Source/requirements.txt](file:///e:/vietnamese-sentiment-analysis/Source/requirements.txt)** - Danh sách các thư viện cần cài đặt.
-  * **[Source/phase_1_crawl/crawler.py](file:///e:/vietnamese-sentiment-analysis/Source/phase_1_crawl/crawler.py)** - Script thu thập bình luận từ YouTube API.
-  * **[Source/phase_2_preprocess/preprocess.py](file:///e:/vietnamese-sentiment-analysis/Source/phase_2_preprocess/preprocess.py)** - Script làm sạch và tách từ (Word Segmentation) tiếng Việt.
-  * **[Source/phase_3_modeling/sentiment_model.py](file:///e:/vietnamese-sentiment-analysis/Source/phase_3_modeling/sentiment_model.py)** - Phân tích cảm xúc, gán nhãn PhoBERT/Lexicon và chạy ETL nạp cơ sở dữ liệu.
-  * **[Source/phase_4_dwh/db_setup.sql](file:///e:/vietnamese-sentiment-analysis/Source/phase_4_dwh/db_setup.sql)** - Thiết kế Data Warehouse dạng mô hình hình sao (Star Schema).
-  * **[Source/phase_5_dashboard/app.py](file:///e:/vietnamese-sentiment-analysis/Source/phase_5_dashboard/app.py)** - Giao diện Streamlit Dashboard và chức năng thử nghiệm real-time.
-* **[data/](file:///e:/vietnamese-sentiment-analysis/data)** - Lưu trữ dữ liệu thô, dữ liệu đã xử lý CSV và file DB SQLite (`sentiment_dwh.db`).
+* **[README.md](file:README.md)** - Tài liệu hướng dẫn chi tiết dự án.
+* **[Source/](file:Source)** - Thư mục chứa toàn bộ mã nguồn của dự án.
+  * **[Source/requirements.txt](file:Source/requirements.txt)** - Danh sách các thư viện cần cài đặt.
+  * **[Source/phase_1_crawl/crawler.py](file:Source/phase_1_crawl/crawler.py)** - Script thu thập bình luận từ YouTube API.
+  * **[Source/phase_2_preprocess/preprocess.py](file:Source/phase_2_preprocess/preprocess.py)** - Script làm sạch và tách từ (Word Segmentation) tiếng Việt.
+  * **[Source/phase_3_modeling/sentiment_model.py](file:Source/phase_3_modeling/sentiment_model.py)** - Phân tích cảm xúc, gán nhãn PhoBERT/Lexicon và chạy ETL nạp cơ sở dữ liệu.
+  * **[Source/phase_4_dwh/db_setup.sql](file:Source/phase_4_dwh/db_setup.sql)** - Thiết kế Data Warehouse dạng mô hình hình sao (Star Schema).
+  * **[Source/phase_5_dashboard/app.py](file:/Source/phase_5_dashboard/app.py)** - Giao diện Streamlit Dashboard và chức năng thử nghiệm real-time.
+* **[data/](file:data)** - Lưu trữ dữ liệu thô, dữ liệu đã xử lý CSV và file DB SQLite (`sentiment_dwh.db`).
 
 ---
 
@@ -65,11 +65,11 @@ pip install -r Source/requirements.txt
 ### Bước 2: Tạo Cơ sở dữ liệu Data Warehouse
 Dự án tự động hỗ trợ 2 loại CSDL:
 * **SQLite (Offline):** Được cấu hình tự động khi chạy quy trình mô hình. Hệ thống sẽ tự động khởi tạo cơ sở dữ liệu tại `data/sentiment_dwh.db` mà không cần cài đặt thêm.
-* **MySQL (Online - Tùy chọn):** Bạn có thể cài đặt MySQL Server, sau đó import file [db_setup.sql](file:///e:/vietnamese-sentiment-analysis/Source/phase_4_dwh/db_setup.sql) để tạo cấu trúc Star Schema trước khi cấu hình kết nối trong Dashboard.
+* **MySQL (Online - Tùy chọn):** Bạn có thể cài đặt MySQL Server, sau đó import file [db_setup.sql](file:Source/phase_4_dwh/db_setup.sql) để tạo cấu trúc Star Schema trước khi cấu hình kết nối trong Dashboard.
 
 ### Bước 3: Thu thập dữ liệu (Crawling)
-* Đảm bảo bạn đã có **YouTube API Key** từ Google Cloud Console.
-* Mở file [crawler.py](file:///e:/vietnamese-sentiment-analysis/Source/phase_1_crawl/crawler.py), điền API Key vào biến cấu hình tương ứng.
+* Đảm bảo đã có các **API Key** từ Google Cloud Console, Twitter Developer Portal, Meta for Developers và lưu chúng vào file credential.json đặt ở thư mục gốc
+* Mở file [crawler.py](Source/phase_1_crawl/crawler.py), điền API Key vào biến cấu hình tương ứng.
 * Chạy lệnh thu thập dữ liệu:
   ```powershell
   python Source/phase_1_crawl/crawler.py
